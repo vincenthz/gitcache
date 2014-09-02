@@ -3,6 +3,7 @@
 -- Simple git overlay that cache repository locally to the user,
 -- for faster cloning and updating
 --
+{-# LANGUAGE PackageImports #-}
 module Main where
 
 import Data.List
@@ -12,7 +13,7 @@ import System.Directory
 import System.FilePath
 import System.Process
 import System.Exit
-import Crypto.Hash
+import "cryptohash" Crypto.Hash
 import qualified Data.ByteString.UTF8 as UTF8
 
 urlToHash :: String -> String

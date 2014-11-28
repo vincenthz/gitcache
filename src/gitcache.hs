@@ -4,6 +4,7 @@
 -- for faster cloning and updating
 --
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Data.List
@@ -33,7 +34,7 @@ rawSystemEC s l = do
 withSetDirectory newDir f = do
     old <- getCurrentDirectory
     setCurrentDirectory newDir
-    f
+    _ <- f
     setCurrentDirectory old
 
 -- update everything in a cache repository
@@ -63,7 +64,8 @@ getRepoUrl gitCacheDir repoDir =
   where
     getOriginUrl ("[remote \"origin\"]":l) =
         stripSpaces . drop 5 . stripSpaces <$> findUrl l
-    getOriginUrl (x:xs) = getOriginUrl xs
+    getOriginUrl (_:xs) = getOriginUrl xs
+    getOriginUrl []     = Nothing
 
     findUrl = find (isPrefixOf "url =" . stripSpaces)
     stripSpaces = dropWhile isSpace
@@ -101,7 +103,7 @@ main = do
         "update":[]  -> do
             repos <- listCacheRepos gitCacheDir
             let nbRepos = length repos
-            forM_ (zip [1..] repos) $ \(i,repo) -> do
+            forM_ (zip [1..] repos) $ \(i :: Int,repo) -> do
                 url <- getRepoUrl gitCacheDir repo
                 putStrLn ("updating " ++ show i ++ "/" ++ show nbRepos ++ " " ++ maybe "" id url)
                 updateRepo (gitCacheDir </> repo)

@@ -75,10 +75,19 @@ showRepoUrl gitCacheDir repoDir = do
 listCacheRepos gitCacheDir =
     filter (not . flip elem [".",".."]) <$> getDirectoryContents gitCacheDir
 
+initialization = do
+    gitCacheDir <- getGitCacheDir
+    mapM_ expectedDirectory [ gitCacheDir ]
+    return gitCacheDir
+  where
+    expectedDirectory :: FilePath -> IO ()
+    expectedDirectory = createDirectoryIfMissing False
+
+    getGitCacheDir = flip (</>) ".gitcache" <$> getEnv "HOME"
+
 main = do
     args <- getArgs
-    home <- getEnv "HOME"
-    let gitCacheDir = home </> ".gitcache"
+    gitCacheDir <- initialization
     case args of
         "clone":"github":user:repo:[] -> do
             cloneUrl gitCacheDir

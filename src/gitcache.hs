@@ -42,22 +42,27 @@ updateRepo repoDir =
     withSetDirectory repoDir $
         rawSystemEC "git" [ "fetch", "--all" ]
 
+data CloneOpt = CloneLocally | CloneInCache
+    deriving (Show,Eq)
+
 cloneRepo inDir destName url =
     withSetDirectory inDir $
         rawSystemEC "git" [ "clone", "--mirror", url, destName ]
 
-cloneUrl gitCacheDir url pushUrl = do
+cloneUrl gitCacheDir cloneOpt url pushUrl = do
     let destName = urlToHash url
         destDir  = gitCacheDir </> destName
     clonedAlready <- doesDirectoryExist destDir
     if clonedAlready
         then updateRepo destDir
         else cloneRepo gitCacheDir destName url
-    -- and clone locally and replace the origin url
-    rawSystemEC "git" [ "clone", destDir, urlToName url ]
-    withSetDirectory (urlToName url) $ do
-        rawSystemEC "git" [ "remote", "set-url", "origin", url ]
-        maybe (return ()) (\purl -> rawSystemEC "git" [ "remote", "set-url", "origin", "--push", purl]) pushUrl
+
+    when (cloneOpt == CloneLocally) $ do
+        -- and clone locally and replace the origin url
+        rawSystemEC "git" [ "clone", destDir, urlToName url ]
+        withSetDirectory (urlToName url) $ do
+            rawSystemEC "git" [ "remote", "set-url", "origin", url ]
+            maybe (return ()) (\purl -> rawSystemEC "git" [ "remote", "set-url", "origin", "--push", purl]) pushUrl
 
 getRepoUrl gitCacheDir repoDir =
     getOriginUrl . lines <$> readFile (gitCacheDir </> repoDir </> "config")
@@ -87,16 +92,23 @@ initialization = do
 
     getGitCacheDir = flip (</>) ".gitcache" <$> getEnv "HOME"
 
+commandClone gitCacheDir cloneOpt args =
+    case args of
+        "github":user:repo:[] -> do
+            cloneUrl gitCacheDir cloneOpt
+                     ("https://github.com/" ++ user ++ "/" ++ repo)
+                     (Just ("git@github.com:" ++ user ++ "/" ++ repo))
+        url:[] -> do
+            cloneUrl gitCacheDir cloneOpt url Nothing
+        _ ->
+            error "clone options not known"
+
 main = do
     args <- getArgs
     gitCacheDir <- initialization
     case args of
-        "clone":"github":user:repo:[] -> do
-            cloneUrl gitCacheDir
-                     ("https://github.com/" ++ user ++ "/" ++ repo)
-                     (Just ("git@github.com:" ++ user ++ "/" ++ repo))
-        "clone":url:[] ->
-            cloneUrl gitCacheDir url Nothing
+        "clone":cargs -> commandClone gitCacheDir CloneLocally cargs
+        "cache":cargs -> commandClone gitCacheDir CloneInCache cargs
         "list":[]    -> do
             repos <- listCacheRepos gitCacheDir
             mapM_ (showRepoUrl gitCacheDir) repos

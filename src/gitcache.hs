@@ -124,6 +124,8 @@ main = do
             mapM_ putStrLn
                 [ "  clone <url>"
                 , "  clone github <user> <repo>"
+                , "  cache <url>"
+                , "  cache github <user> <repo>"
                 , "  list"
                 , "  update"
                 ]

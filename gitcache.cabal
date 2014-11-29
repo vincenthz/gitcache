@@ -1,7 +1,8 @@
 Name:                gitcache
 Version:             0.1
 Synopsis:            Simple git utility to use and manage clone cache
-Description:         
+Description:
+    Manage cache of git repository for faster cloning and offline working
 License:             BSD3
 License-file:        LICENSE
 Copyright:           Vincent Hanquez <vincent@snarc.org>

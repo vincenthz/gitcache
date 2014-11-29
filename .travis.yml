@@ -11,7 +11,7 @@ before_install:
 
 install:
  - cabal-1.18 update
- - if [ "" = "6.12.3" ]; then
+ - if [ "$GHCVER" = "6.12.3" ]; then
       cabal-1.18 install --only-dependencies;
       cabal-1.18 install 'QuickCheck==2.6.*';
    else

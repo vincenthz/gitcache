@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
+import Application.CLI
 import Data.List
 import Data.Char
 import Control.Applicative
@@ -82,50 +83,92 @@ showRepoUrl gitCacheDir repoDir = do
 listCacheRepos gitCacheDir =
     filter (not . flip elem [".",".."]) <$> getDirectoryContents gitCacheDir
 
-initialization = do
-    gitCacheDir <- getGitCacheDir
-    mapM_ expectedDirectory [ gitCacheDir ]
-    return gitCacheDir
-  where
-    expectedDirectory :: FilePath -> IO ()
-    expectedDirectory = createDirectoryIfMissing False
+commandGithubClone :: GitCacheConfig -> String -> String -> CloneOpt -> IO ()
+commandGithubClone cfg user repo cloneOpt =
+    cloneUrl (cacheDir cfg) cloneOpt
+             ("https://github.com/" ++ user ++ "/" ++ repo)
+             (Just ("git@github.com:" ++ user ++ "/" ++ repo))
 
-    getGitCacheDir = flip (</>) ".gitcache" <$> getEnv "HOME"
+commandURLClone :: GitCacheConfig -> String -> CloneOpt -> IO ()
+commandURLClone cfg url cloneOpt =
+    cloneUrl (cacheDir cfg) cloneOpt url Nothing
 
-commandClone gitCacheDir cloneOpt args =
-    case args of
-        "github":user:repo:[] -> do
-            cloneUrl gitCacheDir cloneOpt
-                     ("https://github.com/" ++ user ++ "/" ++ repo)
-                     (Just ("git@github.com:" ++ user ++ "/" ++ repo))
-        url:[] -> do
-            cloneUrl gitCacheDir cloneOpt url Nothing
-        _ ->
-            error "clone options not known"
+data CloneCLI = CloneCLI GitCacheConfig
+instance CLI CloneCLI where
+    name    _ = "clone"
+    desc    _ = "Cache and clone the given repository"
+    options _ = [ OptHelp []         (Just "url")  "The remote repository url (if non-github)"
+                , OptHelp ["github"] (Just "username") "The remote repository is hosted on github.com into <user> account repository <repo>"
+                , OptHelp []         (Just "repo") "the repository name"
+                ]
+    action (CloneCLI cfg) _ =
+        withOptionalParameterStr ["github"] $ \mUserName ->
+            case mUserName of
+                Nothing       -> withStr "url"  $ \url  -> execute $ commandURLClone cfg url CloneLocally
+                Just username -> withStr "repo" $ \repo -> execute $ commandGithubClone cfg username repo CloneLocally
 
-main = do
-    args <- getArgs
-    gitCacheDir <- initialization
-    case args of
-        "clone":cargs -> commandClone gitCacheDir CloneLocally cargs
-        "cache":cargs -> commandClone gitCacheDir CloneInCache cargs
-        "list":[]    -> do
+data CacheCLI = CacheCLI GitCacheConfig
+instance CLI CacheCLI where
+    name    _ = "cache"
+    desc    _ = "Cache the given repository"
+    options _ = [ OptHelp []         (Just "url")  "The remote repository url (if non-github)"
+                , OptHelp ["github"] (Just "username") "The remote repository is hosted on github.com into <user> account repository <repo>"
+                , OptHelp []         (Just "repo") "the repository name"
+                ]
+    action (CacheCLI cfg) _ = do
+        withOptionalParameterStr ["github"] $ \mUserName ->
+            case mUserName of
+                Nothing       -> withStr "url"  $ \url  -> execute $ commandURLClone cfg url CloneInCache
+                Just username -> withStr "repo" $ \repo -> execute $ commandGithubClone cfg username repo CloneInCache
+
+data ListCLI = ListCLI GitCacheConfig
+instance CLI ListCLI where
+    name    _ = "list"
+    desc    _ = "List the cached repositories"
+    options _ = []
+    action (ListCLI cfg) _ =
+        execute $ do
+            let gitCacheDir = cacheDir cfg
             repos <- listCacheRepos gitCacheDir
             mapM_ (showRepoUrl gitCacheDir) repos
-        "update":[]  -> do
+
+data UpdateCLI = UpdateCLI GitCacheConfig
+instance CLI UpdateCLI where
+    name    _ = "update"
+    desc    _ = "Update the cached repositories"
+    options _ = []
+    action (UpdateCLI cfg) _ =
+        execute $ do
+            let gitCacheDir = cacheDir cfg
             repos <- listCacheRepos gitCacheDir
             let nbRepos = length repos
             forM_ (zip [1..] repos) $ \(i :: Int,repo) -> do
                 url <- getRepoUrl gitCacheDir repo
                 putStrLn ("updating " ++ show i ++ "/" ++ show nbRepos ++ " " ++ maybe "" id url)
                 updateRepo (gitCacheDir </> repo)
-        _            -> do
-            putStrLn "usage: gitcache <command>"
-            mapM_ putStrLn
-                [ "  clone <url>"
-                , "  clone github <user> <repo>"
-                , "  cache <url>"
-                , "  cache github <user> <repo>"
-                , "  list"
-                , "  update"
-                ]
+
+data GitCacheConfig = GitCacheConfig
+    { cacheDir :: FilePath
+    } deriving (Show, Eq)
+
+initialization :: IO GitCacheConfig
+initialization = do
+    gitCacheDir <- getGitCacheDir
+    mapM_ expectedDirectory [ gitCacheDir ]
+    return $ GitCacheConfig gitCacheDir
+  where
+    expectedDirectory :: FilePath -> IO ()
+    expectedDirectory = createDirectoryIfMissing False
+
+    getGitCacheDir = flip (</>) ".gitcache" <$> getEnv "HOME"
+
+main :: IO ()
+main = do
+    cfg <- initialization
+    defaultMain
+        $ with Help
+        $ with (CloneCLI cfg)
+        $ with (CacheCLI cfg)
+        $ with (ListCLI cfg)
+        $ with (UpdateCLI cfg)
+        $ initialize "Command Line Tool for Git Repositories Local Caching"

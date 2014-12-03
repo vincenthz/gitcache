@@ -25,6 +25,7 @@ Executable           gitcache
   ghc-options:       -Wall -fno-warn-missing-signatures
   Hs-Source-Dirs:    src
   Build-depends:     base >= 4 && < 5
+                   , cli >= 0.0.4
                    , process
                    , filepath
                    , directory

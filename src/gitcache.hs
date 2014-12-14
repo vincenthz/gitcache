@@ -23,7 +23,12 @@ urlToHash :: String -> String
 urlToHash url = show (hash (UTF8.fromString url) :: Digest SHA1)
 
 urlToName :: String -> String
-urlToName s = reverse $ fst $ break (== '/') $ reverse s
+urlToName s
+    | isPrefixOf "http://" s  = httpUrl
+    | isPrefixOf "https://" s = httpUrl
+    | otherwise               = sshUrl
+  where httpUrl = reverse $ fst $ break (== '/') $ reverse s
+        sshUrl  = httpUrl
 
 rawSystemEC s l = do
     ec <- rawSystem s l

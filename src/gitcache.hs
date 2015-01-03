@@ -85,7 +85,10 @@ showRepoUrl gitCacheDir repoDir = do
     putStrLn (repoDir ++ ": " ++ maybe "error: cannot determine 'url'" id url)
 
 listCacheRepos gitCacheDir =
-    filter (not . flip elem [".",".."]) <$> getDirectoryContents gitCacheDir
+    (filter (not . flip elem [".",".."]) <$> getDirectoryContents gitCacheDir) >>= filterM isRepo
+  where isRepo path = do
+            dir <- doesDirectoryExist (gitCacheDir </> path)
+            if not dir then return False else doesFileExist (gitCacheDir </> path </> "config")
 
 initialization = do
     gitCacheDir <- getGitCacheDir

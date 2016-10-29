@@ -29,5 +29,5 @@ Executable           gitcache
                    , filepath
                    , directory
                    , utf8-string
-                   , cryptohash
+                   , cryptonite
   default-language:  Haskell2010

@@ -16,7 +16,7 @@ import System.Directory
 import System.FilePath
 import System.Process
 import System.Exit
-import "cryptohash" Crypto.Hash
+import Crypto.Hash
 import qualified Data.ByteString.UTF8 as UTF8
 
 urlToHash :: String -> String

@@ -1,5 +1,5 @@
 Name:                gitcache
-Version:             0.2
+Version:             0.3
 Synopsis:            Simple git utility to use and manage clone cache
 Description:
     Manage cache of git repository for faster cloning and offline working
